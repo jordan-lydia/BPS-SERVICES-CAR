@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPS Business Car – Vente, importation et location de véhicules au Katanga</title>
+<meta name="description" content="BPS Business Car : véhicules neufs et d’occasion, commande sur mesure et location à Lubumbashi, Kolwezi et Likasi.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="car" viewBox="0 0 400 130"><path d="M18 92c0-12 6-18 22-22l56-14c26-24 52-34 96-34 36 0 56 8 84 30l70 12c14 3 22 10 22 28v8H18z" fill="#0c0c0c" stroke="#d4af37" stroke-width="3"/><path d="M110 58c24-20 48-28 86-28 30 0 46 6 70 26z" fill="none" stroke="#d4af37" stroke-width="2"/><circle cx="100" cy="100" r="22" fill="#000" stroke="#d4af37" stroke-width="4"/><circle cx="310" cy="100" r="22" fill="#000" stroke="#d4af37" stroke-width="4"/></symbol></defs></svg>
+
+<div class="top">Livraison sécurisée vers Lubumbashi, Kolwezi et Likasi. Besoin d’aide ? Écrivez à notre agent commercial sur WhatsApp.</div>
+<div class="util"><div class="wrap">
+<span>Véhicules en stock : <b id="cTotal"></b></span>
+<span>Ajoutés cette semaine : <b id="cNew"></b></span>
+<span>Heure de Lubumbashi : <b id="clock"></b></span>
+<label class="cur">Devise <select id="cur"><option>USD</option><option>CDF</option></select></label>
+</div></div>
+
+<header><div class="wrap hd">
+<a class="logo gold" href="#">BPS<small>BUSINESS CAR</small></a>
+<form id="kw" class="kw"><select id="kwMode" aria-label="Type de recherche"><option value="q">Mot-clé</option><option value="ref">N° de réf.</option></select><input id="kwIn" placeholder="ex. Prado, BPS-0004" aria-label="Recherche"><button class="btn fill">Rechercher</button></form>
+<a class="btn" id="waTop" target="_blank" rel="noopener">WhatsApp</a>
+</div>
+<nav class="menu"><div class="wrap">
+<a href="#stock">Véhicules d’occasion</a><a href="#stock" data-tab="neuf">Véhicules neufs</a><a href="#location">Location</a><a href="#commande">Commande sur mesure</a><a href="#achat">Comment acheter</a><a href="#apropos">À propos</a><a href="#contact">Contact</a>
+</div></nav></header>
+
+<section class="hero"><div class="wrap hg">
+<div><h1 class="gold">La réussite commence par l’action</h1><p>Nous ne nous contentons pas de conduire. Nous conduisons vos ambitions.</p><p class="meta">Vente • Commande sur mesure • Location — Grand Katanga</p></div>
+<svg class="car" role="img" aria-label="Berline de luxe"><use href="#car"/></svg>
+</div></section>
+
+<section class="wrap"><h2>Rechercher un véhicule</h2>
+<form id="sf" class="panel">
+<div><label for="fMake">Marque</label><select id="fMake"></select></div>
+<div><label for="fModel">Modèle</label><select id="fModel"></select></div>
+<div><label for="fPrice">Prix</label><select id="fPrice"></select></div>
+<div><label for="fType">Type</label><select id="fType"></select></div>
+<div><label for="fSteer">Direction</label><select id="fSteer"><option value="">Toutes</option><option>Droite</option><option>Gauche</option></select></div>
+<div><label for="fY1">Année de</label><select id="fY1"></select></div>
+<div><label for="fY2">à</label><select id="fY2"></select></div>
+<div><label for="fCity">Ville</label><select id="fCity"><option value="">Toutes</option><option>Lubumbashi</option><option>Kolwezi</option><option>Likasi</option></select></div>
+<button class="btn fill" type="submit">Rechercher</button><button class="btn" type="reset" id="reset">Réinitialiser</button>
+</form></section>
+
+<section class="wrap shop">
+<div><h3>Par marque</h3><div class="chips" id="byMake"></div></div>
+<div><h3>Par type</h3><div class="chips" id="byType"></div></div>
+<div><h3>Par prix</h3><div class="chips" id="byPrice"></div></div>
+</section>
+
+<section class="wrap" id="stock">
+<h2>Véhicules en stock</h2>
+<div class="tabs" id="tabs"><button class="chip" data-tab="all">Tous</button><button class="chip" data-tab="n">Nouveaux arrivages</button><button class="chip" data-tab="p">Promotions</button><button class="chip" data-tab="x">Premium</button><button class="chip" data-tab="neuf">Neufs</button></div>
+<p class="meta" id="count" aria-live="polite"></p>
+<div class="cards" id="results"></div>
+</section>
+
+<section class="wrap" id="location"><h2>Location de véhicules</h2>
+<p class="lead">Courte ou longue durée. Choisissez vos dates pour calculer le total.</p>
+<div class="dates"><div><label for="dFrom">Début</label><input id="dFrom" type="date"></div><div><label for="dTo">Fin</label><input id="dTo" type="date"></div></div>
+<div class="cards" id="rentals"></div></section>
+
+<section class="alt" id="commande"><div class="wrap split">
+<div><h2>Commande et importation sur mesure</h2><p class="lead">Dites-nous ce que vous cherchez. Nous trouvons le véhicule, l’achetons et le livrons à Lubumbashi, Kolwezi ou Likasi.</p></div>
+<form class="box" id="orderForm">
+<div class="row2"><div><label for="oName">Nom complet</label><input id="oName" required></div><div><label for="oTel">WhatsApp</label><input id="oTel" type="tel" required></div></div>
+<div class="row2"><div><label for="oVeh">Véhicule recherché</label><input id="oVeh" required placeholder="Marque, modèle, année"></div><div><label for="oBud">Budget (USD)</label><input id="oBud" type="number" min="0" required></div></div>
+<div><label for="oVille">Ville de livraison</label><select id="oVille"><option>Lubumbashi</option><option>Kolwezi</option><option>Likasi</option></select></div>
+<button class="btn fill">Envoyer sur WhatsApp</button></form></div></section>
+
+<section class="wrap" id="achat"><h2>Comment acheter chez BPS Business Car</h2>
+<ol class="steps"><li><b>Choisissez</b>Parcourez le stock ou demandez une commande sur mesure.</li><li><b>Recevez la facture</b>Notre agent vous envoie un devis détaillé sur WhatsApp.</li><li><b>Payez</b>Réglez selon les modalités indiquées sur la facture.</li><li><b>Expédition</b>Nous organisons le transport sécurisé.</li><li><b>Livraison</b>Récupérez votre véhicule dans votre ville.</li></ol></section>
+
+<section class="alt" id="apropos"><div class="wrap"><h2>Voir plus loin, aller plus haut</h2>
+<div class="pillars"><div><h3>Vision</h3><p>Voir plus loin, aller plus haut.</p></div><div><h3>Confiance</h3><p>Des relations solides pour des résultats durables.</p></div><div><h3>Discipline</h3><p>La clé de la réussite et de la liberté.</p></div><div><h3>Résultats</h3><p>Des objectifs clairs pour un impact réel.</p></div></div>
+<p class="banner gold">Entreprendre • Persévérer • Innover • Réussir<br>Bâtissons aujourd’hui l’héritage de demain.</p></div></section>
+
+<footer id="contact"><div class="wrap ft">
+<div><div class="logo gold">BPS<small>BUSINESS CAR</small></div><p>La réussite commence par l’action.</p></div>
+<div><b>Contact</b><br>WhatsApp : +243 000 000 000<br>contact@bps-businesscar.com<br>Lubumbashi • Kolwezi • Likasi</div>
+<div><b>Services</b><br><a href="#stock">Vente</a><br><a href="#commande">Commande sur mesure</a><br><a href="#location">Location</a></div>
+</div></footer>
+<a class="wa" id="wa" target="_blank" rel="noopener">WhatsApp</a>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body></html>
