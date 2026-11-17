@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<!-- Ajout de Chart.js pour les graphiques -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="car" viewBox="0 0 400 130"><path d="M18 92c0-12 6-18 22-22l56-14c26-24 52-34 96-34 36 0 56 8 84 30l70 12c14 3 22 10 22 28v8H18z" fill="#eaf6ff" stroke="#1565d8" stroke-width="3"/><path d="M110 58c24-20 48-28 86-28 30 0 46 6 70 26z" fill="#fff" stroke="#1565d8" stroke-width="2"/><circle cx="100" cy="100" r="22" fill="#0a2540" stroke="#38b6ff" stroke-width="4"/><circle cx="310" cy="100" r="22" fill="#0a2540" stroke="#38b6ff" stroke-width="4"/></symbol></defs></svg>
@@ -101,9 +103,29 @@
 
 <div id="aPanel" hidden>
 <div class="atop"><span class="meta" id="aWho"></span><button class="btn" id="aLogout" type="button">Se déconnecter</button></div>
-<div class="tabs" id="aTabs"><button class="chip" data-p="aVeh">Véhicules</button><button class="chip" data-p="aOrd">Demandes clients</button><button class="chip" data-p="aSet">Paramètres</button></div>
+<div class="tabs" id="aTabs">
+  <button class="chip" data-p="aDash">Tableau de bord</button>
+  <button class="chip" data-p="aVeh">Véhicules</button>
+  <button class="chip" data-p="aOrd">Demandes clients</button>
+  <button class="chip" data-p="aCarr">Carrousel (Accueil)</button>
+  <button class="chip" data-p="aSet">Paramètres</button>
+</div>
 
-<div id="aVeh">
+<!-- DASHBOARD -->
+<div id="aDash">
+  <div class="dash-grid">
+    <div class="dash-card"><h4>Visites totales</h4><p id="statVisits">0</p></div>
+    <div class="dash-card"><h4>Véhicules en stock</h4><p id="statStock">0</p></div>
+    <div class="dash-card"><h4>Revenus (Ventes)</h4><p id="statRevenue">$0</p></div>
+    <div class="dash-card"><h4>Demandes en attente</h4><p id="statOrders">0</p></div>
+  </div>
+  <div class="chart-container">
+    <canvas id="salesChart"></canvas>
+  </div>
+</div>
+
+<!-- VEHICULES -->
+<div id="aVeh" hidden>
 <form id="aForm" class="panel">
 <div><label for="aModeV">Catégorie</label><select id="aModeV"><option value="vente">Vente</option><option value="location">Location (prix par jour)</option></select></div>
 <div><label for="aMake">Marque</label><input id="aMake" required maxlength="60"></div>
@@ -123,8 +145,23 @@
 <p class="meta" id="aMsg" role="status"></p>
 <div class="tbl" id="aList"></div></div>
 
+<!-- DEMANDES -->
 <div id="aOrd" hidden><div class="tbl" id="aOrders"></div></div>
 
+<!-- CARROUSEL -->
+<div id="aCarr" hidden>
+  <form id="cForm" class="panel">
+    <input type="hidden" id="cId">
+    <div class="span2"><label for="cTitle">Texte du slide</label><input id="cTitle" required maxlength="150"></div>
+    <div class="span2"><label for="cImg">Image (JPG/PNG, 5Mo max)</label><input id="cImg" type="file" accept="image/*"></div>
+    <button class="btn fill" id="cSave">Ajouter le slide</button>
+    <button class="btn" id="cCancel" type="button" hidden>Annuler</button>
+  </form>
+  <p class="meta" id="cMsg" role="status"></p>
+  <div class="tbl" id="cList"></div>
+</div>
+
+<!-- PARAMETRES -->
 <div id="aSet" hidden><form id="sForm" class="box narrow"><div><label for="sWa">Numéro WhatsApp (indicatif, sans « + »)</label><input id="sWa" required pattern="[0-9]{8,15}"></div><div><label for="sPh">Téléphone affiché</label><input id="sPh"></div><div><label for="sMail">Email affiché</label><input id="sMail" type="email"></div><button class="btn fill">Enregistrer</button><p class="meta" id="sMsg" role="status"></p></form></div>
 </div></div></section>
 
