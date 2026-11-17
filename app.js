@@ -2,11 +2,13 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const RATE = 2300; // 1 USD en francs congolais : à ajuster
+const RATE = 2300;
 const PR = [["Moins de 15 000 $",0,15000],["15 000 – 25 000 $",15000,25000],["25 000 – 40 000 $",25000,40000],["Plus de 40 000 $",40000,1e12]];
 const TAGN = {n:"Nouveau", p:"Promo", x:"Premium", neuf:"Neuf"};
 let db = null, V = [], S = {whatsapp:"243000000000", phone:"", email:""}, cur = "USD", demo = false;
 let f = {make:"",model:"",price:"",type:"",steer:"",y1:"",y2:"",city:"",q:"",ref:"",tab:"all"};
+let slidesData = []; // Pour le carrousel dynamique
+let chartInstance = null; // Pour le graphique
 
 const wa = t => "https://wa.me/" + String(S.whatsapp).replace(/\D/g,"") + "?text=" + encodeURIComponent(t);
 const money = p => cur === "USD" ? "$" + Number(p).toLocaleString("en-US") : Math.round(p * RATE).toLocaleString("fr-FR") + " FC";
@@ -21,12 +23,20 @@ async function load() {
   try {
     if (!window.supabase) throw new Error("bibliothèque Supabase absente");
     db = db || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const [a, b] = await Promise.all([
+    
+    // Suivi des visites (Insertion asynchrone)
+    db.from("visits").insert({ page: "home" }).then();
+
+    const [a, b, c] = await Promise.all([
       db.from("vehicles").select("*").order("created_at", {ascending:false}),
-      db.from("settings").select("*").eq("id", 1).maybeSingle()
+      db.from("settings").select("*").eq("id", 1).maybeSingle(),
+      db.from("carousel").select("*").order("position", {ascending:true})
     ]);
     if (a.error) throw a.error;
-    V = a.data.map(norm); if (b.data) S = b.data; demo = false;
+    V = a.data.map(norm); 
+    if (b.data) S = b.data; 
+    if (c.data) slidesData = c.data;
+    demo = false;
   } catch (e) { console.warn("Mode démo :", e.message || e); V = FALLBACK.map(norm); demo = true; }
   $("demo").hidden = !demo;
 }
@@ -93,21 +103,45 @@ function renderAll() {
 }
 
 // ---------- Carrousel ----------
-// Pour de vraies photos : ajoutez img:"images/photo1.jpg" dans une diapositive.
-const SL = [
-  {bg:"linear-gradient(135deg,#0a2540,#1565d8 70%,#38b6ff)", t:"Véhicules neufs et d’occasion certifiés, disponibles dans le Grand Katanga."},
-  {bg:"linear-gradient(135deg,#0b3a75,#38b6ff)", t:"Commande et importation sur mesure, livrées à Lubumbashi, Kolwezi et Likasi."},
-  {bg:"linear-gradient(135deg,#06182f,#0f4fb0 65%,#6cc8ff)", t:"Location de véhicules toutes marques, courte ou longue durée."},
-  {bg:"linear-gradient(135deg,#123a6b,#1d7be8 60%,#8fd6ff)", t:"Entreprendre • Persévérer • Innover • Réussir."}
-];
 let si = 0, timer = null;
-function go(i) { si = (i + SL.length) % SL.length;
+function initCarousel() {
+  const slidesContainer = $("slides");
+  const dotsContainer = $("dots");
+  slidesContainer.innerHTML = "";
+  dotsContainer.innerHTML = "";
+  
+  if (!slidesData.length) {
+    slidesData = [
+      {id:1, title:"Véhicules neufs et d’occasion certifiés, disponibles dans le Grand Katanga.", image_url:""},
+      {id:2, title:"Commande et importation sur mesure, livrées à Lubumbashi, Kolwezi et Likasi.", image_url:""},
+      {id:3, title:"Location de véhicules toutes marques, courte ou longue durée.", image_url:""},
+      {id:4, title:"Entreprendre • Persévérer • Innover • Réussir.", image_url:""}
+    ];
+  }
+
+  slidesData.forEach((s, i) => {
+    const d = document.createElement("div"); d.className = "slide";
+    if (s.image_url) {
+      d.style.backgroundImage = `url(${s.image_url})`;
+    } else {
+      d.style.background = `linear-gradient(135deg, #0a2540, #1565d8)`;
+    }
+    slidesContainer.appendChild(d);
+    
+    const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-label", "Diapositive " + (i + 1));
+    b.onclick = () => { go(i); play(); }; dotsContainer.appendChild(b);
+  });
+  go(0);
+  play();
+}
+function go(i) { 
+  if (!slidesData.length) return;
+  si = (i + slidesData.length) % slidesData.length;
   [...$("slides").children].forEach((e, k) => e.classList.toggle("on", k === si));
   [...$("dots").children].forEach((e, k) => e.setAttribute("aria-current", String(k === si)));
-  $("cap").textContent = SL[si].t; }
+  $("cap").textContent = slidesData[si] ? slidesData[si].title : ""; 
+}
 function play() { clearInterval(timer); if (!matchMedia("(prefers-reduced-motion:reduce)").matches) timer = setInterval(() => go(si + 1), 5000); }
-SL.forEach((s, i) => { const d = document.createElement("div"); d.className = "slide"; d.style.backgroundImage = s.img ? "url(" + s.img + ")" : s.bg; $("slides").appendChild(d);
-  const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-label", "Diapositive " + (i + 1)); b.onclick = () => { go(i); play(); }; $("dots").appendChild(b); });
 $("accueil").addEventListener("mouseenter", () => clearInterval(timer)); $("accueil").addEventListener("mouseleave", play);
 
 // ---------- Événements publics ----------
@@ -134,7 +168,7 @@ $("orderForm").onsubmit = async e => {
 // ---------- Espace administrateur ----------
 let isAdm = false, signup = false, editing = null;
 const msg = (id, t) => { $(id).textContent = t; };
-function showAdm() { $("aLogin").hidden = isAdm; $("aPanel").hidden = !isAdm; if (isAdm) { openTab("aVeh"); renderAList(); } }
+function showAdm() { $("aLogin").hidden = isAdm; $("aPanel").hidden = !isAdm; if (isAdm) { openTab("aDash"); renderAList(); renderCList(); } }
 async function checkAdmin() {
   if (!db || demo) return;
   const {data:{session}} = await db.auth.getSession();
@@ -154,11 +188,104 @@ $("aLoginForm").onsubmit = async e => {
   $("aPass").value = ""; msg("aErr", ""); await checkAdmin();
 };
 $("aLogout").onclick = async () => { await db.auth.signOut(); isAdm = false; showAdm(); };
-function openTab(id) { ["aVeh","aOrd","aSet"].forEach(p => $(p).hidden = p !== id);
+
+function openTab(id) { 
+  ["aDash","aVeh","aOrd","aCarr","aSet"].forEach(p => $(p).hidden = p !== id);
   document.querySelectorAll("#aTabs .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === id)));
-  if (id === "aOrd") loadOrders(); if (id === "aSet") { $("sWa").value = S.whatsapp || ""; $("sPh").value = S.phone || ""; $("sMail").value = S.email || ""; } }
+  if (id === "aDash") loadDashboard();
+  if (id === "aOrd") loadOrders(); 
+  if (id === "aCarr") renderCList();
+  if (id === "aSet") { $("sWa").value = S.whatsapp || ""; $("sPh").value = S.phone || ""; $("sMail").value = S.email || ""; } 
+}
 document.querySelectorAll("#aTabs .chip").forEach(b => b.onclick = () => openTab(b.dataset.p));
 
+// --- DASHBOARD LOGIC ---
+async function loadDashboard() {
+  if (!db || demo) return;
+  
+  // Stats
+  const [vCount, oCount, visits, sold] = await Promise.all([
+    db.from("vehicles").select("*", { count: 'exact', head: true }),
+    db.from("orders").select("*", { count: 'exact', head: true }),
+    db.from("visits").select("*", { count: 'exact', head: true }),
+    db.from("vehicles").select("price").eq("mode", "vente").eq("sold", true)
+  ]);
+
+  $("statStock").textContent = vCount.count || 0;
+  $("statOrders").textContent = oCount.count || 0;
+  $("statVisits").textContent = visits.count || 0;
+  
+  const revenue = sold.data ? sold.data.reduce((acc, curr) => acc + Number(curr.price), 0) : 0;
+  $("statRevenue").textContent = "$" + revenue.toLocaleString("en-US");
+
+  // Chart
+  const ctx = document.getElementById('salesChart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'],
+      datasets: [{
+        label: 'Revenus des ventes ($)',
+        data: [12000, 19000, 15000, 25000, 22000, 30000], // Données fictives, à remplacer par une agrégation SQL
+        borderColor: '#1565d8',
+        backgroundColor: 'rgba(21, 101, 216, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+// --- CARROUSEL LOGIC ---
+function renderCList() {
+  const box = $("cList"); box.innerHTML = "";
+  if (!slidesData.length) box.innerHTML = '<div class="row">Aucun slide.</div>';
+  slidesData.forEach(s => {
+    const r = document.createElement("div"); r.className = "row";
+    r.innerHTML = `<span><b>${esc(s.title)}</b><br><small>${s.image_url ? "Image chargée" : "Pas d'image"}</small></span><span class="acts"><button class="btn sm" type="button">Modifier</button><button class="btn sm del" type="button">Supprimer</button></span>`;
+    const [m, d] = r.querySelectorAll("button"); 
+    m.onclick = () => editSlide(s); 
+    d.onclick = () => delSlide(s); 
+    box.appendChild(r);
+  });
+}
+function editSlide(s) {
+  $("cId").value = s.id; $("cTitle").value = s.title; 
+  $("cSave").textContent = "Modifier le slide"; $("cCancel").hidden = false;
+  msg("cMsg", "Modification du slide.");
+}
+$("cCancel").onclick = () => { $("cForm").reset(); $("cId").value = ""; $("cSave").textContent = "Ajouter le slide"; $("cCancel").hidden = true; msg("cMsg", ""); };
+$("cForm").onsubmit = async e => {
+  e.preventDefault(); $("cSave").disabled = true;
+  try {
+    const id = $("cId").value;
+    const row = { title: $("cTitle").value.trim(), position: slidesData.length + 1 };
+    const file = $("cImg").files[0];
+    if (file) {
+      const ext = file.name.split(".").pop();
+      const path = `slide_${Date.now()}.${ext}`;
+      const up = await db.storage.from("carousel").upload(path, file);
+      if (up.error) throw up.error;
+      row.image_url = db.storage.from("carousel").getPublicUrl(path).data.publicUrl;
+    }
+    if (id) { await db.from("carousel").update(row).eq("id", id); }
+    else { await db.from("carousel").insert(row); }
+    msg("cMsg", "Slide enregistré.");
+    $("cForm").reset(); $("cId").value = ""; $("cSave").textContent = "Ajouter le slide"; $("cCancel").hidden = true;
+    await load(); renderCList(); initCarousel();
+  } catch (err) { msg("cMsg", "Erreur: " + err.message); }
+  $("cSave").disabled = false;
+};
+async function delSlide(s) {
+  if (!confirm("Supprimer ce slide ?")) return;
+  await db.from("carousel").delete().eq("id", s.id);
+  await load(); renderCList(); initCarousel();
+}
+
+// --- VEHICULES LOGIC ---
 function renderAList() {
   const box = $("aList"); box.innerHTML = "";
   if (!V.length) box.innerHTML = '<div class="row">Aucun véhicule. Ajoutez-en un avec le formulaire.</div>';
@@ -203,6 +330,8 @@ async function delVehicle(v) {
   const p = photoPath(v.image_url); if (p) db.storage.from("vehicules").remove([p]);
   msg("aMsg", "Véhicule supprimé."); await reload();
 }
+
+// --- COMMANDES LOGIC ---
 async function loadOrders() {
   const box = $("aOrders"); box.innerHTML = '<div class="row">Chargement…</div>';
   const r = await db.from("orders").select("*").order("created_at", {ascending:false});
@@ -215,6 +344,8 @@ async function loadOrders() {
     box.appendChild(d);
   });
 }
+
+// --- SETTINGS LOGIC ---
 $("sForm").onsubmit = async e => {
   e.preventDefault(); const row = {id:1, whatsapp:$("sWa").value.trim(), phone:$("sPh").value.trim() || null, email:$("sMail").value.trim() || null};
   const r = await db.from("settings").upsert(row); if (r.error) { msg("sMsg", "Erreur : " + r.error.message); return; }
@@ -224,7 +355,7 @@ $("sForm").onsubmit = async e => {
 // ---------- Démarrage ----------
 (async function init() {
   const pr = $("fPrice"); pr.innerHTML = "<option value=''>Tous</option>" + PR.map((p, i) => `<option value="${i}">${p[0]}</option>`).join("");
-  await load(); renderAll(); go(0); play(); showAdm();
+  await load(); renderAll(); initCarousel(); showAdm();
   if (db && !demo) { await checkAdmin(); db.auth.onAuthStateChange(ev => { if (ev === "SIGNED_OUT") { isAdm = false; showAdm(); } }); }
 })();
 })();
