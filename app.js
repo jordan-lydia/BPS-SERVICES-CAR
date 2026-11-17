@@ -7,8 +7,8 @@ const PR = [["Moins de 15 000 $",0,15000],["15 000 – 25 000 $",15000,25000],["
 const TAGN = {n:"Nouveau", p:"Promo", x:"Premium", neuf:"Neuf"};
 let db = null, V = [], S = {whatsapp:"243000000000", phone:"", email:""}, cur = "USD", demo = false;
 let f = {make:"",model:"",price:"",type:"",steer:"",y1:"",y2:"",city:"",q:"",ref:"",tab:"all"};
-let slidesData = []; // Pour le carrousel dynamique
-let chartInstance = null; // Pour le graphique
+let slidesData = []; 
+let chartInstance = null; 
 
 const wa = t => "https://wa.me/" + String(S.whatsapp).replace(/\D/g,"") + "?text=" + encodeURIComponent(t);
 const money = p => cur === "USD" ? "$" + Number(p).toLocaleString("en-US") : Math.round(p * RATE).toLocaleString("fr-FR") + " FC";
@@ -264,15 +264,23 @@ $("cForm").onsubmit = async e => {
     const id = $("cId").value;
     const row = { title: $("cTitle").value.trim(), position: slidesData.length + 1 };
     const file = $("cImg").files[0];
+    
     if (file) {
-      const ext = file.name.split(".").pop();
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!['jpg', 'jpeg', 'jfif', 'png', 'webp'].includes(ext)) throw new Error("Format d'image non supporté. Utilisez JPG, JFIF, PNG ou WebP.");
+      
       const path = `slide_${Date.now()}.${ext}`;
-      const up = await db.storage.from("carousel").upload(path, file);
+      // On force le contentType à image/jpeg si c'est du jfif pour que le navigateur l'affiche correctement
+      const contentType = (ext === 'jfif') ? 'image/jpeg' : file.type;
+      
+      const up = await db.storage.from("carousel").upload(path, file, { contentType: contentType });
       if (up.error) throw up.error;
       row.image_url = db.storage.from("carousel").getPublicUrl(path).data.publicUrl;
     }
+    
     if (id) { await db.from("carousel").update(row).eq("id", id); }
     else { await db.from("carousel").insert(row); }
+    
     msg("cMsg", "Slide enregistré.");
     $("cForm").reset(); $("cId").value = ""; $("cSave").textContent = "Ajouter le slide"; $("cCancel").hidden = true;
     await load(); renderCList(); initCarousel();
@@ -305,8 +313,14 @@ function editVehicle(v) {
 $("aCancel").onclick = () => { resetForm(); msg("aMsg", ""); };
 async function uploadPhoto(file) {
   if (file.size > 5 * 1024 * 1024) throw new Error("Photo trop lourde (5 Mo maximum).");
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, ""), path = crypto.randomUUID() + "." + ext;
-  const r = await db.storage.from("vehicules").upload(path, file, {contentType:file.type, cacheControl:"31536000"}); if (r.error) throw r.error;
+  // On accepte jfif, jpg, jpeg, png, webp
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!['jpg', 'jpeg', 'jfif', 'png', 'webp'].includes(ext)) throw new Error("Format d'image non supporté.");
+  
+  const path = crypto.randomUUID() + "." + ext;
+  const contentType = (ext === 'jfif') ? 'image/jpeg' : file.type;
+  const r = await db.storage.from("vehicules").upload(path, file, {contentType: contentType, cacheControl:"31536000"}); 
+  if (r.error) throw r.error;
   return db.storage.from("vehicules").getPublicUrl(path).data.publicUrl;
 }
 const photoPath = url => url && url.includes("/vehicules/") ? decodeURIComponent(url.split("/vehicules/").pop()) : null;
