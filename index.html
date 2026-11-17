@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<!-- Ajout de Chart.js pour les graphiques -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -28,6 +27,15 @@
 <a class="btn" id="waTop" target="_blank" rel="noopener">WhatsApp</a>
 </div>
 <nav class="menu" aria-label="Navigation principale"><div class="wrap"><a href="#accueil">ACCUEIL</a><a href="#services">NOS SERVICES</a><a href="#contact">CONTACT</a><a href="#admin">ADMIN</a></div></nav></header>
+
+<!-- MODALE POUR DETAILS VEHICULE -->
+<div id="vehicleModal" class="modal" hidden>
+  <div class="modal-content">
+    <span class="close-modal" onclick="document.getElementById('vehicleModal').hidden = true">&times;</span>
+    <div id="modalGallery" class="modal-gallery"></div>
+    <div id="modalDetails" class="modal-details"></div>
+  </div>
+</div>
 
 <section class="hero" id="accueil">
 <div class="slides" id="slides" aria-hidden="true"></div><div class="dots" id="dots" role="group" aria-label="Diaporama"></div>
@@ -106,7 +114,7 @@
 <div class="tabs" id="aTabs">
   <button class="chip" data-p="aDash">Tableau de bord</button>
   <button class="chip" data-p="aVeh">Véhicules</button>
-  <button class="chip" data-p="aOrd">Demandes clients</button>
+  <button class="chip" data-p="aOrd">Demandes & Réservations</button>
   <button class="chip" data-p="aCarr">Carrousel (Accueil)</button>
   <button class="chip" data-p="aSet">Paramètres</button>
 </div>
@@ -121,6 +129,9 @@
   </div>
   <div class="chart-container">
     <canvas id="salesChart"></canvas>
+  </div>
+  <div class="chart-container" style="margin-top:20px; height:300px">
+    <canvas id="ordersChart"></canvas>
   </div>
 </div>
 
@@ -138,15 +149,17 @@
 <div><label for="aKm">Kilométrage</label><input id="aKm" type="number" min="0" value="0"></div>
 <div><label for="aCity">Ville</label><select id="aCity"><option>Lubumbashi</option><option>Kolwezi</option><option>Likasi</option></select></div>
 <div class="span2"><label>Étiquettes</label><div class="checks"><label><input type="checkbox" name="aTag" value="n"> Nouveau</label><label><input type="checkbox" name="aTag" value="p"> Promo</label><label><input type="checkbox" name="aTag" value="x"> Premium</label><label><input type="checkbox" name="aTag" value="neuf"> Neuf</label><label><input type="checkbox" id="aAvail" checked> Visible sur le site</label></div></div>
-<div class="span2"><label for="aPhoto">Photo (JPG, PNG, WebP, JFIF - 5 Mo max)</label><input id="aPhoto" type="file" accept="image/jpeg, image/jfif, image/png, image/webp"></div>
+<div class="span2"><label for="aPhotos">Photos (JPG, PNG, WebP, JFIF - 5 Mo max - Sélectionnez plusieurs)</label><input id="aPhotos" type="file" accept="image/jpeg, image/jfif, image/png, image/webp" multiple></div>
 <div class="span2"><label for="aDesc">Description</label><input id="aDesc" maxlength="300"></div>
 <button class="btn fill" id="aSave">Ajouter le véhicule</button><button class="btn" id="aCancel" type="button" hidden>Annuler la modification</button>
 </form>
 <p class="meta" id="aMsg" role="status"></p>
 <div class="tbl" id="aList"></div></div>
 
-<!-- DEMANDES -->
-<div id="aOrd" hidden><div class="tbl" id="aOrders"></div></div>
+<!-- DEMANDES & RÉSERVATIONS -->
+<div id="aOrd" hidden>
+  <div class="tbl" id="aOrders"></div>
+</div>
 
 <!-- CARROUSEL -->
 <div id="aCarr" hidden>
