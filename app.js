@@ -9,10 +9,11 @@ let db = null, V = [], S = {whatsapp:"243000000000", phone:"", email:""}, cur = 
 let f = {make:"",model:"",price:"",type:"",steer:"",y1:"",y2:"",city:"",q:"",ref:"",tab:"all"};
 let slidesData = []; 
 let chartInstance = null; 
+let ordersChartInstance = null;
 
 const wa = t => "https://wa.me/" + String(S.whatsapp).replace(/\D/g,"") + "?text=" + encodeURIComponent(t);
 const money = p => cur === "USD" ? "$" + Number(p).toLocaleString("en-US") : Math.round(p * RATE).toLocaleString("fr-FR") + " FC";
-const norm = r => Object.assign({}, r, {ref: "BPS-" + String(r.ref_no).padStart(4,"0"), tags: r.tags || [], price: Number(r.price)});
+const norm = r => Object.assign({}, r, {ref: "BPS-" + String(r.ref_no).padStart(4,"0"), tags: r.tags || [], price: Number(r.price), images: r.images || []});
 const uniq = (k, list) => [...new Set((list || sale()).map(v => v[k]).filter(Boolean))].sort();
 const sale = () => V.filter(v => v.mode === "vente" && v.available);
 const rent = () => V.filter(v => v.mode === "location" && v.available);
@@ -24,7 +25,6 @@ async function load() {
     if (!window.supabase) throw new Error("bibliothèque Supabase absente");
     db = db || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    // Suivi des visites (Insertion asynchrone)
     db.from("visits").insert({ page: "home" }).then();
 
     const [a, b, c] = await Promise.all([
@@ -54,18 +54,64 @@ function match(v) {
 }
 function card(o) {
   const d = document.createElement("article"); d.className = "card";
-  d.innerHTML = `<div class="pic">${o.tag ? `<span class="tag">${esc(o.tag)}</span>` : ""}${o.img ? `<img src="${esc(o.img)}" alt="${esc(o.title)}" loading="lazy">` : `<svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg>`}</div><div class="body"><h3>${esc(o.title)}</h3><div class="meta">${o.meta}</div><div class="price">${o.price}</div><a class="btn fill" target="_blank" rel="noopener" href="${esc(o.link)}">${esc(o.label)}</a></div>`;
+  d.innerHTML = `<div class="pic" onclick="openVehicleModal('${o.vehicleId}')">${o.tag ? `<span class="tag">${esc(o.tag)}</span>` : ""}${o.img ? `<img src="${esc(o.img)}" alt="${esc(o.title)}" loading="lazy">` : `<svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg>`}</div><div class="body"><h3>${esc(o.title)}</h3><div class="meta">${o.meta}</div><div class="price">${o.price}</div><a class="btn fill" target="_blank" rel="noopener" href="${esc(o.link)}">${esc(o.label)}</a></div>`;
   return d;
 }
+
+// Ouvre la modale avec détails et galerie
+window.openVehicleModal = function(id) {
+  const v = V.find(x => String(x.id) === String(id));
+  if (!v) return;
+  
+  const gallery = $("modalGallery");
+  gallery.innerHTML = "";
+  const images = (v.images && v.images.length > 0) ? v.images : (v.image_url ? [v.image_url] : []);
+  
+  if (images.length === 0) {
+    gallery.innerHTML = `<div class="modal-img-placeholder"><svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg></div>`;
+  } else {
+    images.forEach((img, idx) => {
+      const i = document.createElement("img");
+      i.src = img;
+      i.className = "modal-thumb";
+      i.onclick = () => { 
+        document.querySelectorAll(".modal-thumb").forEach(t => t.classList.remove("active"));
+        i.classList.add("active");
+        document.getElementById("modalMainImg").src = img; 
+      };
+      if (idx === 0) i.classList.add("active");
+      gallery.appendChild(i);
+    });
+    gallery.innerHTML = `<div class="modal-main-img-container"><img id="modalMainImg" src="${images[0]}"></div>` + gallery.innerHTML;
+  }
+
+  const details = $("modalDetails");
+  details.innerHTML = `<h2>${esc(v.make)} ${esc(v.model)}</h2>
+    <p class="meta">Réf. ${esc(v.ref)} • ${v.mode === "location" ? "Location" : "Vente"}</p>
+    <div class="modal-specs">
+      <p><b>Année :</b> ${esc(v.year || "-")}</p>
+      <p><b>Carburant :</b> ${esc(v.fuel || "-")}</p>
+      <p><b>Direction :</b> ${esc(v.steering || "-")}</p>
+      <p><b>Kilométrage :</b> ${v.mileage ? Number(v.mileage).toLocaleString("fr-FR") + " km" : "-"}</p>
+      <p><b>Ville :</b> ${esc(v.city || "-")}</p>
+      <p><b>Description :</b> ${esc(v.description || "Aucune description fournie.")}</p>
+    </div>
+    <p class="price" style="font-size:2rem;margin-top:10px">${money(v.price)}${v.mode === "location" ? " / jour" : ""}</p>
+    <a class="btn fill" target="_blank" rel="noopener" href="${wa(`Bonjour, je suis intéressé par ${v.make} ${v.model} (réf. ${v.ref}). Je souhaite plus d'informations ou passer commande.`)}">Commander / Réserver via WhatsApp</a>
+  `;
+  $("vehicleModal").hidden = false;
+};
+
 function renderStock() {
   const list = sale().filter(match), box = $("results"); box.innerHTML = "";
   $("count").textContent = list.length + " véhicule" + (list.length > 1 ? "s" : "") + " correspondent à votre recherche";
   if (!list.length) box.innerHTML = '<div class="empty">Aucun véhicule ne correspond. Réinitialisez les filtres ou passez une <a href="#commande" style="color:var(--blue);font-weight:600">commande sur mesure</a>.</div>';
   list.forEach(v => box.appendChild(card({
-    title: v.make + " " + v.model, img: v.image_url, tag: TAGN[v.tags[0]] || "",
+    vehicleId: v.id,
+    title: v.make + " " + v.model, img: (v.images && v.images.length > 0) ? v.images[0] : v.image_url, tag: TAGN[v.tags[0]] || "",
     meta: `Réf. ${esc(v.ref)}<br>${esc(v.year || "")} • ${v.mileage ? Number(v.mileage).toLocaleString("fr-FR") + " km" : "Neuf"} • ${esc(v.fuel || "")}<br>Direction ${esc((v.steering || "").toLowerCase())} • ${esc(v.city || "")}`,
-    price: money(v.price), label: "Demander la facture",
-    link: wa(`Bonjour, je souhaite une facture pour ${v.make} ${v.model} ${v.year || ""} (réf. ${v.ref})`)
+    price: money(v.price), label: "Voir les détails",
+    link: "#"
   })));
   document.querySelectorAll("#tabs .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === f.tab)));
   renderChips();
@@ -89,7 +135,13 @@ function renderRent() {
     let p = money(v.price) + " / jour", t = `Bonjour, je souhaite louer : ${v.make} ${v.model} (${v.city})`;
     if (days > 0) { p += `<br><span class="tot">${days} j : ${money(v.price * days)}</span>`; t = `Bonjour, je souhaite louer : ${v.make} ${v.model} du ${a} au ${b} (${v.city}), total estimé ${money(v.price * days)}`; }
     else if (a && b) p += "<br><small>La date de fin doit suivre le début.</small>";
-    box.appendChild(card({title:v.make + " " + v.model, img:v.image_url, tag:"Location", meta:`${esc(v.year || "")} • ${esc(v.fuel || "")}<br>Disponible à ${esc(v.city || "")}`, price:p, label:"Réserver", link:wa(t)}));
+    box.appendChild(card({
+      vehicleId: v.id,
+      title: v.make + " " + v.model, img: (v.images && v.images.length > 0) ? v.images[0] : v.image_url, tag: "Location", 
+      meta: `${esc(v.year || "")} • ${esc(v.fuel || "")}<br>Disponible à ${esc(v.city || "")}`, 
+      price: p, label: "Voir les détails",
+      link: "#"
+    }));
   });
 }
 function renderAll() {
@@ -155,11 +207,15 @@ $("kw").onsubmit = e => { e.preventDefault(); f.q = ""; f.ref = ""; f[$("kwMode"
 document.querySelectorAll("#tabs [data-tab]").forEach(b => b.onclick = () => { f.tab = b.dataset.tab; renderStock(); });
 $("dFrom").onchange = $("dTo").onchange = renderRent;
 $("dFrom").min = $("dTo").min = new Date().toISOString().slice(0, 10);
+
 $("orderForm").onsubmit = async e => {
   e.preventDefault();
-  const o = {name:$("oName").value.trim(), phone:$("oTel").value.trim(), vehicle:$("oVeh").value.trim(), budget:+$("oBud").value, city:$("oVille").value};
+  const o = {name:$("oName").value.trim(), phone:$("oTel").value.trim(), vehicle:$("oVeh").value.trim(), budget:+$("oBud").value, city:$("oVille").value, type:"commande_sur_mesure", status:"pending"};
   let saved = false;
-  if (db && !demo) { const r = await db.from("orders").insert(o); saved = !r.error; }
+  if (db && !demo) { 
+    const r = await db.from("orders").insert(o); 
+    saved = !r.error; 
+  }
   $("oMsg").textContent = saved ? "Demande enregistrée. Notre équipe vous répond sur WhatsApp." : "Ouverture de WhatsApp pour envoyer votre demande.";
   window.open(wa(`Commande sur mesure BPS Business Car\nNom : ${o.name}\nTéléphone : ${o.phone}\nVéhicule : ${o.vehicle}\nBudget : ${o.budget} USD\nLivraison : ${o.city}`), "_blank", "noopener");
   e.target.reset();
@@ -203,22 +259,21 @@ document.querySelectorAll("#aTabs .chip").forEach(b => b.onclick = () => openTab
 async function loadDashboard() {
   if (!db || demo) return;
   
-  // Stats
-  const [vCount, oCount, visits, sold] = await Promise.all([
+  const [vCount, oCount, visits, soldOrders] = await Promise.all([
     db.from("vehicles").select("*", { count: 'exact', head: true }),
     db.from("orders").select("*", { count: 'exact', head: true }),
     db.from("visits").select("*", { count: 'exact', head: true }),
-    db.from("vehicles").select("price").eq("mode", "vente").eq("sold", true)
+    db.from("orders").select("budget, created_at").eq("status", "completed")
   ]);
 
   $("statStock").textContent = vCount.count || 0;
   $("statOrders").textContent = oCount.count || 0;
   $("statVisits").textContent = visits.count || 0;
   
-  const revenue = sold.data ? sold.data.reduce((acc, curr) => acc + Number(curr.price), 0) : 0;
+  const revenue = soldOrders.data ? soldOrders.data.reduce((acc, curr) => acc + Number(curr.budget || 0), 0) : 0;
   $("statRevenue").textContent = "$" + revenue.toLocaleString("en-US");
 
-  // Chart
+  // Graphique Revenus
   const ctx = document.getElementById('salesChart').getContext('2d');
   if (chartInstance) chartInstance.destroy();
   
@@ -228,11 +283,31 @@ async function loadDashboard() {
       labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'],
       datasets: [{
         label: 'Revenus des ventes ($)',
-        data: [12000, 19000, 15000, 25000, 22000, 30000], // Données fictives, à remplacer par une agrégation SQL
+        data: [12000, 19000, 15000, 25000, 22000, 30000],
         borderColor: '#1565d8',
         backgroundColor: 'rgba(21, 101, 216, 0.1)',
         tension: 0.4,
         fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  // Graphique Commandes vs Réservations
+  const ctx2 = document.getElementById('ordersChart').getContext('2d');
+  if (ordersChartInstance) ordersChartInstance.destroy();
+
+  const ordersData = await db.from("orders").select("type");
+  const counts = { commande_sur_mesure: 0, achat: 0, reservation: 0 };
+  if (ordersData.data) ordersData.data.forEach(o => { if (counts[o.type] !== undefined) counts[o.type]++; });
+
+  ordersChartInstance = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Commandes sur mesure', 'Achats', 'Réservations'],
+      datasets: [{
+        data: [counts.commande_sur_mesure || 0, counts.achat || 0, counts.reservation || 0],
+        backgroundColor: ['#1565d8', '#38b6ff', '#0a2540']
       }]
     },
     options: { responsive: true, maintainAspectRatio: false }
@@ -270,7 +345,6 @@ $("cForm").onsubmit = async e => {
       if (!['jpg', 'jpeg', 'jfif', 'png', 'webp'].includes(ext)) throw new Error("Format d'image non supporté. Utilisez JPG, JFIF, PNG ou WebP.");
       
       const path = `slide_${Date.now()}.${ext}`;
-      // On force le contentType à image/jpeg si c'est du jfif pour que le navigateur l'affiche correctement
       const contentType = (ext === 'jfif') ? 'image/jpeg' : file.type;
       
       const up = await db.storage.from("carousel").upload(path, file, { contentType: contentType });
@@ -303,61 +377,100 @@ function renderAList() {
     const [m, d] = r.querySelectorAll("button"); m.onclick = () => editVehicle(v); d.onclick = () => delVehicle(v); box.appendChild(r);
   });
 }
-function resetForm() { editing = null; $("aForm").reset(); $("aSave").textContent = "Ajouter le véhicule"; $("aCancel").hidden = true; }
+function resetForm() { editing = null; $("aForm").reset(); $("aSave").textContent = "Ajouter le véhicule"; $("aCancel").hidden = true; $("aPhotos").value = ""; }
 function editVehicle(v) {
   editing = v; $("aModeV").value = v.mode; $("aMake").value = v.make; $("aModel").value = v.model; $("aYear").value = v.year || ""; $("aType").value = v.body_type || "SUV";
   $("aFuel").value = v.fuel || "Essence"; $("aSteer").value = v.steering || "Gauche"; $("aPrice").value = v.price; $("aKm").value = v.mileage || 0; $("aCity").value = v.city || "Lubumbashi";
   document.querySelectorAll("[name=aTag]").forEach(c => c.checked = v.tags.includes(c.value)); $("aAvail").checked = v.available; $("aDesc").value = v.description || "";
-  $("aSave").textContent = "Enregistrer les modifications"; $("aCancel").hidden = false; msg("aMsg", "Modification de " + v.ref + ". Laissez la photo vide pour la conserver."); $("aForm").scrollIntoView();
+  $("aSave").textContent = "Enregistrer les modifications"; $("aCancel").hidden = false; msg("aMsg", "Modification de " + v.ref + ". Laissez les photos vides pour les conserver."); $("aForm").scrollIntoView();
 }
 $("aCancel").onclick = () => { resetForm(); msg("aMsg", ""); };
-async function uploadPhoto(file) {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Photo trop lourde (5 Mo maximum).");
-  // On accepte jfif, jpg, jpeg, png, webp
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (!['jpg', 'jpeg', 'jfif', 'png', 'webp'].includes(ext)) throw new Error("Format d'image non supporté.");
-  
-  const path = crypto.randomUUID() + "." + ext;
-  const contentType = (ext === 'jfif') ? 'image/jpeg' : file.type;
-  const r = await db.storage.from("vehicules").upload(path, file, {contentType: contentType, cacheControl:"31536000"}); 
-  if (r.error) throw r.error;
-  return db.storage.from("vehicules").getPublicUrl(path).data.publicUrl;
+
+async function uploadPhotos(files) {
+  const urls = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.size > 5 * 1024 * 1024) throw new Error("Photo trop lourde (5 Mo maximum).");
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!['jpg', 'jpeg', 'jfif', 'png', 'webp'].includes(ext)) throw new Error("Format d'image non supporté.");
+    
+    const path = crypto.randomUUID() + "." + ext;
+    const contentType = (ext === 'jfif') ? 'image/jpeg' : file.type;
+    const r = await db.storage.from("vehicules").upload(path, file, {contentType: contentType, cacheControl:"31536000"}); 
+    if (r.error) throw r.error;
+    urls.push(db.storage.from("vehicules").getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
 }
 const photoPath = url => url && url.includes("/vehicules/") ? decodeURIComponent(url.split("/vehicules/").pop()) : null;
 async function reload() { await load(); renderAll(); renderAList(); }
+
 $("aForm").onsubmit = async e => {
   e.preventDefault(); $("aSave").disabled = true; msg("aMsg", "Enregistrement…");
   try {
     const row = {mode:$("aModeV").value, make:$("aMake").value.trim(), model:$("aModel").value.trim(), year:+$("aYear").value || null, body_type:$("aType").value, fuel:$("aFuel").value, steering:$("aSteer").value,
       price:+$("aPrice").value, mileage:+$("aKm").value || 0, city:$("aCity").value, tags:[...document.querySelectorAll("[name=aTag]:checked")].map(c => c.value), available:$("aAvail").checked, description:$("aDesc").value.trim() || null};
-    const file = $("aPhoto").files[0];
-    if (file) { row.image_url = await uploadPhoto(file); if (editing) { const old = photoPath(editing.image_url); if (old) db.storage.from("vehicules").remove([old]); } }
+    
+    const files = $("aPhotos").files;
+    if (files.length > 0) {
+      const newUrls = await uploadPhotos(files);
+      if (editing) { 
+        row.images = [...(editing.images || []), ...newUrls]; 
+        // Si on avait une seule image_url, on la garde en premier
+        if (editing.image_url) row.images.unshift(editing.image_url);
+      } else {
+        row.images = newUrls;
+      }
+      row.image_url = row.images[0]; // La première devient l'image principale
+    }
+
     const r = editing ? await db.from("vehicles").update(row).eq("id", editing.id) : await db.from("vehicles").insert(row);
     if (r.error) throw r.error;
     msg("aMsg", editing ? "Véhicule modifié." : "Véhicule ajouté."); resetForm(); await reload();
   } catch (err) { msg("aMsg", "Erreur : " + (err.message || err)); }
   $("aSave").disabled = false;
 };
+
 async function delVehicle(v) {
   if (!confirm("Supprimer définitivement " + v.make + " " + v.model + " ?")) return;
   const r = await db.from("vehicles").delete().eq("id", v.id); if (r.error) { msg("aMsg", "Erreur : " + r.error.message); return; }
-  const p = photoPath(v.image_url); if (p) db.storage.from("vehicules").remove([p]);
+  const imgs = v.images || [];
+  if (v.image_url && !imgs.includes(v.image_url)) imgs.push(v.image_url);
+  const paths = imgs.map(photoPath).filter(Boolean);
+  if (paths.length > 0) db.storage.from("vehicules").remove(paths);
   msg("aMsg", "Véhicule supprimé."); await reload();
 }
 
-// --- COMMANDES LOGIC ---
+// --- COMMANDES & RÉSERVATIONS LOGIC ---
 async function loadOrders() {
   const box = $("aOrders"); box.innerHTML = '<div class="row">Chargement…</div>';
   const r = await db.from("orders").select("*").order("created_at", {ascending:false});
   if (r.error) { box.innerHTML = '<div class="row">Erreur : ' + esc(r.error.message) + "</div>"; return; }
   box.innerHTML = r.data.length ? "" : '<div class="row">Aucune demande pour le moment.</div>';
+  
   r.data.forEach(o => {
     const d = document.createElement("div"); d.className = "row";
-    d.innerHTML = `<span><b>${esc(o.name)}</b> • ${esc(o.phone)}<br><small>${esc(o.vehicle)} • budget ${money(o.budget || 0)} • ${esc(o.city || "")} • ${new Date(o.created_at).toLocaleDateString("fr-FR")}</small></span><span class="acts"><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${esc(String(o.phone).replace(/\D/g, ""))}">WhatsApp</a><button class="btn sm del" type="button">Supprimer</button></span>`;
-    d.querySelector("button").onclick = async () => { if (confirm("Supprimer cette demande ?")) { await db.from("orders").delete().eq("id", o.id); loadOrders(); } };
+    const statusLabel = o.status === "completed" ? "✅ Terminé" : (o.status === "cancelled" ? "❌ Annulé" : "⏳ En attente");
+    d.innerHTML = `<span><b>${esc(o.name)}</b> • ${esc(o.phone)}<br><small>${esc(o.vehicle)} • budget ${money(o.budget || 0)} • ${esc(o.city || "")} • ${new Date(o.created_at).toLocaleDateString("fr-FR")} • <i>${o.type || 'inconnu'}</i> • ${statusLabel}</small></span>
+    <span class="acts">
+      <button class="btn sm" type="button" onclick="markOrder('${o.id}', 'completed')">✔ Valider</button>
+      <button class="btn sm del" type="button" onclick="markOrder('${o.id}', 'cancelled')">✖ Annuler</button>
+      <a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${esc(String(o.phone).replace(/\D/g, ""))}">WhatsApp</a>
+      <button class="btn sm del" type="button" onclick="deleteOrder('${o.id}')">🗑</button>
+    </span>`;
     box.appendChild(d);
   });
 }
+window.markOrder = async (id, status) => {
+  await db.from("orders").update({ status }).eq("id", id);
+  loadOrders();
+};
+window.deleteOrder = async (id) => {
+  if (confirm("Supprimer cette demande ?")) {
+    await db.from("orders").delete().eq("id", id);
+    loadOrders();
+  }
+};
 
 // --- SETTINGS LOGIC ---
 $("sForm").onsubmit = async e => {
