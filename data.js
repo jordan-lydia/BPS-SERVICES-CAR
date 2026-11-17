@@ -1,5 +1,4 @@
 // Connexion Supabase. La clé « publishable » peut être publique : la sécurité repose sur les règles RLS de la base.
-// Ne mettez JAMAIS ici le mot de passe de la base ni une clé « secret » / « service_role ».
 const SUPABASE_URL = "https://ktdnevesgdmhophcozjv.supabase.co";
 const SUPABASE_KEY = "sb_publishable_oTVUFwPu77U_Ojyf2HTUqQ_F8SHywT5";
 
