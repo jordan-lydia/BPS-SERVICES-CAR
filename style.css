@@ -42,3 +42,39 @@ select,input,textarea{width:100%;background:#fff;color:var(--tx);border:1px soli
 footer{background:var(--navy);color:#b9d3ee;padding:36px 0;font-size:14px}footer a:hover{color:#fff}.ft{display:flex;flex-wrap:wrap;gap:30px;justify-content:space-between}
 .wa{position:fixed;right:16px;bottom:16px;background:#25d366;color:#04230f;font-weight:700;padding:12px 18px;border-radius:99px;z-index:30;box-shadow:0 6px 20px rgba(10,37,64,.3)}
 @media(prefers-reduced-motion:reduce){.slide{transition:none}html{scroll-behavior:auto}}
+
+/* --- DASHBOARD --- */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.dash-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+}
+.dash-card h4 {
+  margin: 0 0 10px;
+  color: var(--mu);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dash-card p {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--blue);
+  margin: 0;
+}
+.chart-container {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  height: 350px;
+  position: relative;
+}
