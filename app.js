@@ -54,7 +54,13 @@ function match(v) {
 }
 function card(o) {
   const d = document.createElement("article"); d.className = "card";
-  d.innerHTML = `<div class="pic" onclick="openVehicleModal('${o.vehicleId}')">${o.tag ? `<span class="tag">${esc(o.tag)}</span>` : ""}${o.img ? `<img src="${esc(o.img)}" alt="${esc(o.title)}" loading="lazy">` : `<svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg>`}</div><div class="body"><h3>${esc(o.title)}</h3><div class="meta">${o.meta}</div><div class="price">${o.price}</div><a class="btn fill" target="_blank" rel="noopener" href="${esc(o.link)}">${esc(o.label)}</a></div>`;
+  // Ajout de l'événement click sur toute la carte
+  d.onclick = (e) => {
+    if (e.target.tagName !== 'A') { // Évite de déclencher si on clique sur le bouton
+      openVehicleModal(o.vehicleId);
+    }
+  };
+  d.innerHTML = `<div class="pic">${o.tag ? `<span class="tag">${esc(o.tag)}</span>` : ""}${o.img ? `<img src="${esc(o.img)}" alt="${esc(o.title)}" loading="lazy">` : `<svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg>`}</div><div class="body"><h3>${esc(o.title)}</h3><div class="meta">${o.meta}</div><div class="price">${o.price}</div><a class="btn fill" href="#">Voir les détails</a></div>`;
   return d;
 }
 
@@ -68,21 +74,31 @@ window.openVehicleModal = function(id) {
   const images = (v.images && v.images.length > 0) ? v.images : (v.image_url ? [v.image_url] : []);
   
   if (images.length === 0) {
-    gallery.innerHTML = `<div class="modal-img-placeholder"><svg viewBox="0 0 400 130" aria-hidden="true"><use href="#car"/></svg></div>`;
+    gallery.innerHTML = `<div class="modal-main-img-container"><svg viewBox="0 0 400 130" style="width:200px" aria-hidden="true"><use href="#car"/></svg></div>`;
   } else {
+    // 1. Créer le conteneur de l'image principale
+    const mainContainer = document.createElement("div");
+    mainContainer.className = "modal-main-img-container";
+    mainContainer.innerHTML = `<img id="modalMainImg" src="${images[0]}">`;
+    gallery.appendChild(mainContainer);
+
+    // 2. Créer le conteneur des miniatures
+    const thumbsContainer = document.createElement("div");
+    thumbsContainer.className = "modal-thumbs";
+    
     images.forEach((img, idx) => {
       const i = document.createElement("img");
       i.src = img;
       i.className = "modal-thumb";
+      if (idx === 0) i.classList.add("active");
       i.onclick = () => { 
         document.querySelectorAll(".modal-thumb").forEach(t => t.classList.remove("active"));
         i.classList.add("active");
         document.getElementById("modalMainImg").src = img; 
       };
-      if (idx === 0) i.classList.add("active");
-      gallery.appendChild(i);
+      thumbsContainer.appendChild(i);
     });
-    gallery.innerHTML = `<div class="modal-main-img-container"><img id="modalMainImg" src="${images[0]}"></div>` + gallery.innerHTML;
+    gallery.appendChild(thumbsContainer);
   }
 
   const details = $("modalDetails");
@@ -110,8 +126,7 @@ function renderStock() {
     vehicleId: v.id,
     title: v.make + " " + v.model, img: (v.images && v.images.length > 0) ? v.images[0] : v.image_url, tag: TAGN[v.tags[0]] || "",
     meta: `Réf. ${esc(v.ref)}<br>${esc(v.year || "")} • ${v.mileage ? Number(v.mileage).toLocaleString("fr-FR") + " km" : "Neuf"} • ${esc(v.fuel || "")}<br>Direction ${esc((v.steering || "").toLowerCase())} • ${esc(v.city || "")}`,
-    price: money(v.price), label: "Voir les détails",
-    link: "#"
+    price: money(v.price)
   })));
   document.querySelectorAll("#tabs .chip").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === f.tab)));
   renderChips();
@@ -139,8 +154,7 @@ function renderRent() {
       vehicleId: v.id,
       title: v.make + " " + v.model, img: (v.images && v.images.length > 0) ? v.images[0] : v.image_url, tag: "Location", 
       meta: `${esc(v.year || "")} • ${esc(v.fuel || "")}<br>Disponible à ${esc(v.city || "")}`, 
-      price: p, label: "Voir les détails",
-      link: "#"
+      price: p
     }));
   });
 }
@@ -416,12 +430,11 @@ $("aForm").onsubmit = async e => {
       const newUrls = await uploadPhotos(files);
       if (editing) { 
         row.images = [...(editing.images || []), ...newUrls]; 
-        // Si on avait une seule image_url, on la garde en premier
         if (editing.image_url) row.images.unshift(editing.image_url);
       } else {
         row.images = newUrls;
       }
-      row.image_url = row.images[0]; // La première devient l'image principale
+      row.image_url = row.images[0];
     }
 
     const r = editing ? await db.from("vehicles").update(row).eq("id", editing.id) : await db.from("vehicles").insert(row);
