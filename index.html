@@ -138,7 +138,7 @@
 <div><label for="aKm">Kilométrage</label><input id="aKm" type="number" min="0" value="0"></div>
 <div><label for="aCity">Ville</label><select id="aCity"><option>Lubumbashi</option><option>Kolwezi</option><option>Likasi</option></select></div>
 <div class="span2"><label>Étiquettes</label><div class="checks"><label><input type="checkbox" name="aTag" value="n"> Nouveau</label><label><input type="checkbox" name="aTag" value="p"> Promo</label><label><input type="checkbox" name="aTag" value="x"> Premium</label><label><input type="checkbox" name="aTag" value="neuf"> Neuf</label><label><input type="checkbox" id="aAvail" checked> Visible sur le site</label></div></div>
-<div class="span2"><label for="aPhoto">Photo (JPG, PNG ou WebP, 5 Mo max)</label><input id="aPhoto" type="file" accept="image/jpeg,image/png,image/webp"></div>
+<div class="span2"><label for="aPhoto">Photo (JPG, PNG, WebP, JFIF - 5 Mo max)</label><input id="aPhoto" type="file" accept="image/jpeg, image/jfif, image/png, image/webp"></div>
 <div class="span2"><label for="aDesc">Description</label><input id="aDesc" maxlength="300"></div>
 <button class="btn fill" id="aSave">Ajouter le véhicule</button><button class="btn" id="aCancel" type="button" hidden>Annuler la modification</button>
 </form>
@@ -153,7 +153,7 @@
   <form id="cForm" class="panel">
     <input type="hidden" id="cId">
     <div class="span2"><label for="cTitle">Texte du slide</label><input id="cTitle" required maxlength="150"></div>
-    <div class="span2"><label for="cImg">Image (JPG/PNG, 5Mo max)</label><input id="cImg" type="file" accept="image/*"></div>
+    <div class="span2"><label for="cImg">Image (JPG, PNG, WebP, JFIF - 5Mo max)</label><input id="cImg" type="file" accept="image/jpeg, image/jfif, image/png, image/webp"></div>
     <button class="btn fill" id="cSave">Ajouter le slide</button>
     <button class="btn" id="cCancel" type="button" hidden>Annuler</button>
   </form>
