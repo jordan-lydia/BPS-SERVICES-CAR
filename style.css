@@ -154,7 +154,7 @@ footer{background:var(--navy);color:#b9d3ee;padding:36px 0;font-size:14px}footer
   cursor: pointer; 
   transition: border-color 0.2s, opacity 0.2s;
   opacity: 0.6;
-  flex-shrink: 0; /* Empêche les miniatures de rétrécir */
+  flex-shrink: 0;
 }
 .modal-thumb:hover { opacity: 1; }
 .modal-thumb.active { 
@@ -178,4 +178,12 @@ footer{background:var(--navy);color:#b9d3ee;padding:36px 0;font-size:14px}footer
   width: 100%;
   padding: 14px;
   font-size: 16px;
+}
+.modal-details input[type="date"] {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 6px;
+  width: 100%;
+  font-family: inherit;
 }
