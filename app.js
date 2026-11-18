@@ -54,9 +54,8 @@ function match(v) {
 }
 function card(o) {
   const d = document.createElement("article"); d.className = "card";
-  // Ajout de l'événement click sur toute la carte
   d.onclick = (e) => {
-    if (e.target.tagName !== 'A') { // Évite de déclencher si on clique sur le bouton
+    if (e.target.tagName !== 'A') {
       openVehicleModal(o.vehicleId);
     }
   };
@@ -76,13 +75,11 @@ window.openVehicleModal = function(id) {
   if (images.length === 0) {
     gallery.innerHTML = `<div class="modal-main-img-container"><svg viewBox="0 0 400 130" style="width:200px" aria-hidden="true"><use href="#car"/></svg></div>`;
   } else {
-    // 1. Créer le conteneur de l'image principale
     const mainContainer = document.createElement("div");
     mainContainer.className = "modal-main-img-container";
     mainContainer.innerHTML = `<img id="modalMainImg" src="${images[0]}">`;
     gallery.appendChild(mainContainer);
 
-    // 2. Créer le conteneur des miniatures
     const thumbsContainer = document.createElement("div");
     thumbsContainer.className = "modal-thumbs";
     
@@ -102,6 +99,23 @@ window.openVehicleModal = function(id) {
   }
 
   const details = $("modalDetails");
+  let actionHtml = "";
+  
+  if (v.mode === "location") {
+    actionHtml = `
+      <div class="row2" style="margin-top:15px; margin-bottom:15px;">
+        <div><label for="mFrom">Date de début</label><input type="date" id="mFrom" required></div>
+        <div><label for="mTo">Date de fin</label><input type="date" id="mTo" required></div>
+      </div>
+      <p class="meta" id="rentCalc" style="font-weight:bold; color:var(--blue); margin-bottom:15px;"></p>
+      <button class="btn fill" type="button" onclick="submitReservation('${v.id}')">Réserver ce véhicule</button>
+    `;
+  } else {
+    actionHtml = `
+      <a class="btn fill" target="_blank" rel="noopener" href="${wa(`Bonjour, je suis intéressé par ${v.make} ${v.model} (réf. ${v.ref}). Je souhaite plus d'informations ou passer commande.`)}">Commander via WhatsApp</a>
+    `;
+  }
+
   details.innerHTML = `<h2>${esc(v.make)} ${esc(v.model)}</h2>
     <p class="meta">Réf. ${esc(v.ref)} • ${v.mode === "location" ? "Location" : "Vente"}</p>
     <div class="modal-specs">
@@ -113,9 +127,60 @@ window.openVehicleModal = function(id) {
       <p><b>Description :</b> ${esc(v.description || "Aucune description fournie.")}</p>
     </div>
     <p class="price" style="font-size:2rem;margin-top:10px">${money(v.price)}${v.mode === "location" ? " / jour" : ""}</p>
-    <a class="btn fill" target="_blank" rel="noopener" href="${wa(`Bonjour, je suis intéressé par ${v.make} ${v.model} (réf. ${v.ref}). Je souhaite plus d'informations ou passer commande.`)}">Commander / Réserver via WhatsApp</a>
+    ${actionHtml}
   `;
   $("vehicleModal").hidden = false;
+
+  // Ajout des écouteurs pour le calcul en direct du prix de location
+  if (v.mode === "location") {
+    setTimeout(() => {
+      const from = document.getElementById("mFrom");
+      const to = document.getElementById("mTo");
+      const calc = document.getElementById("rentCalc");
+      if (from && to && calc) {
+        const updatePrice = () => {
+          if (from.value && to.value && new Date(to.value) >= new Date(from.value)) {
+            const days = Math.round((new Date(to.value) - new Date(from.value)) / 864e5) + 1;
+            calc.textContent = `Total estimé pour ${days} jour(s) : ${money(v.price * days)}`;
+          } else {
+            calc.textContent = "";
+          }
+        };
+        from.onchange = updatePrice;
+        to.onchange = updatePrice;
+        from.min = new Date().toISOString().slice(0, 10);
+        to.min = new Date().toISOString().slice(0, 10);
+      }
+    }, 50);
+  }
+};
+
+window.submitReservation = async function(id) {
+  const v = V.find(x => String(x.id) === String(id));
+  const dFrom = document.getElementById("mFrom").value;
+  const dTo = document.getElementById("mTo").value;
+  
+  if (!dFrom || !dTo) { alert("Veuillez sélectionner les dates de début et de fin."); return; }
+  if (new Date(dFrom) > new Date(dTo)) { alert("La date de fin doit être après la date de début."); return; }
+  
+  const days = Math.round((new Date(dTo) - new Date(dFrom)) / 864e5) + 1;
+  const total = v.price * days;
+  const text = `Bonjour, je souhaite réserver le véhicule : ${v.make} ${v.model} (réf. ${v.ref})\nDu : ${dFrom}\nAu : ${dTo}\nTotal estimé : ${money(total)}`;
+  
+  if (db && !demo) {
+    await db.from("orders").insert({
+      name: "Client Réservation", 
+      phone: "À confirmer",
+      vehicle: `${v.make} ${v.model} (${dFrom} au ${dTo})`,
+      budget: total,
+      city: v.city || "Lubumbashi",
+      type: "reservation",
+      status: "pending"
+    });
+  }
+  
+  window.open(wa(text), "_blank", "noopener");
+  document.getElementById("vehicleModal").hidden = true;
 };
 
 function renderStock() {
@@ -144,11 +209,15 @@ function renderChips() {
 function models() { fill("fModel", "Tous", uniq("model", sale().filter(v => !f.make || v.make === f.make))); }
 function syncForm() { models(); $("fMake").value = f.make; $("fModel").value = f.model; $("fPrice").value = f.price; $("fType").value = f.type; $("fSteer").value = f.steer; $("fY1").value = f.y1; $("fY2").value = f.y2; $("fCity").value = f.city; }
 function renderRent() {
-  const a = $("dFrom").value, b = $("dTo").value, days = a && b ? Math.round((new Date(b) - new Date(a)) / 864e5) + 1 : 0, box = $("rentals"); box.innerHTML = "";
+  const a = $("dFrom").value, b = $("dTo").value, box = $("rentals"); box.innerHTML = "";
   const list = rent(); if (!list.length) box.innerHTML = '<div class="empty">Aucun véhicule de location disponible pour le moment.</div>';
   list.forEach(v => {
     let p = money(v.price) + " / jour", t = `Bonjour, je souhaite louer : ${v.make} ${v.model} (${v.city})`;
-    if (days > 0) { p += `<br><span class="tot">${days} j : ${money(v.price * days)}</span>`; t = `Bonjour, je souhaite louer : ${v.make} ${v.model} du ${a} au ${b} (${v.city}), total estimé ${money(v.price * days)}`; }
+    if (a && b && new Date(b) >= new Date(a)) { 
+      const days = Math.round((new Date(b) - new Date(a)) / 864e5) + 1;
+      p += `<br><span class="tot">${days} j : ${money(v.price * days)}</span>`; 
+      t = `Bonjour, je souhaite louer : ${v.make} ${v.model} du ${a} au ${b} (${v.city}), total estimé ${money(v.price * days)}`; 
+    }
     else if (a && b) p += "<br><small>La date de fin doit suivre le début.</small>";
     box.appendChild(card({
       vehicleId: v.id,
@@ -464,7 +533,8 @@ async function loadOrders() {
   r.data.forEach(o => {
     const d = document.createElement("div"); d.className = "row";
     const statusLabel = o.status === "completed" ? "✅ Terminé" : (o.status === "cancelled" ? "❌ Annulé" : "⏳ En attente");
-    d.innerHTML = `<span><b>${esc(o.name)}</b> • ${esc(o.phone)}<br><small>${esc(o.vehicle)} • budget ${money(o.budget || 0)} • ${esc(o.city || "")} • ${new Date(o.created_at).toLocaleDateString("fr-FR")} • <i>${o.type || 'inconnu'}</i> • ${statusLabel}</small></span>
+    const typeLabel = o.type === "reservation" ? "Réservation Location" : (o.type === "achat" ? "Achat" : "Commande sur mesure");
+    d.innerHTML = `<span><b>${esc(o.name)}</b> • ${esc(o.phone)}<br><small>${esc(o.vehicle)} • budget ${money(o.budget || 0)} • ${esc(o.city || "")} • ${new Date(o.created_at).toLocaleDateString("fr-FR")} • <b>${typeLabel}</b> • ${statusLabel}</small></span>
     <span class="acts">
       <button class="btn sm" type="button" onclick="markOrder('${o.id}', 'completed')">✔ Valider</button>
       <button class="btn sm del" type="button" onclick="markOrder('${o.id}', 'cancelled')">✖ Annuler</button>
