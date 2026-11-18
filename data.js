@@ -1,6 +1,8 @@
+// Connexion Supabase. La clé « publishable » peut être publique : la sécurité repose sur les règles RLS de la base.
 const SUPABASE_URL = "https://ktdnevesgdmhophcozjv.supabase.co";
 const SUPABASE_KEY = "sb_publishable_oTVUFwPu77U_Ojyf2HTUqQ_F8SHywT5";
 
+// Stock de démonstration, affiché seulement si la base est injoignable.
 const FALLBACK = [
   {ref_no:1,mode:"vente",make:"Toyota",model:"Land Cruiser Prado",year:2019,body_type:"SUV",fuel:"Diesel",steering:"Gauche",price:38500,mileage:62000,city:"Lubumbashi",tags:["x"],available:true, images:[]},
   {ref_no:2,mode:"vente",make:"Toyota",model:"Hilux",year:2021,body_type:"Pick-up",fuel:"Diesel",steering:"Gauche",price:32000,mileage:41000,city:"Kolwezi",tags:["n"],available:true, images:[]},
